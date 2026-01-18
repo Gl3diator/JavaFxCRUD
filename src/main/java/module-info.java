@@ -12,6 +12,9 @@ module com.esprit.studentcrud {
 
     requires java.sql;
     requires org.mariadb.jdbc;
+    // for whatsapp api
+    requires java.net.http;
+
 
     // JavaFX controllers
     opens com.esprit.studentcrud.controller to javafx.fxml;

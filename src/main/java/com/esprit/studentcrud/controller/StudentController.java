@@ -11,6 +11,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.util.converter.IntegerStringConverter;
 
+import com.esprit.studentcrud.util.WhatsAppService;
+
+
 public class StudentController {
 
     // ===== TABLE =====
@@ -28,6 +31,9 @@ public class StudentController {
     // ===== DAO =====
     private final StudentDAO dao = new StudentDAOImpl();
     private final ObservableList<Student> students = FXCollections.observableArrayList();
+    //Whatsapp
+    private final WhatsAppService wa = new WhatsAppService();
+
 
     @FXML
     private void initialize() {
@@ -84,9 +90,13 @@ public class StudentController {
                 email
         );
 
+
+
         dao.insert(s);
         loadStudents();
         onClear();
+        //whatsapp api
+        wa.sendStudentAdded(s.getName(), s.getAge(), s.getEmail());
     }
 
 
@@ -142,7 +152,8 @@ public class StudentController {
     }
     //Mail Verif
     private boolean isValidEmail(String email) {
-        return email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+        return email != null && email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     }
+
 
 }
