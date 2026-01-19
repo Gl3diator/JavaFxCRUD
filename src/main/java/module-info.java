@@ -15,6 +15,9 @@ module com.esprit.studentcrud {
     // for whatsapp api
     requires java.net.http;
 
+    // for env
+    requires io.github.cdimascio.dotenv.java;
+
 
     // JavaFX controllers
     opens com.esprit.studentcrud.controller to javafx.fxml;

@@ -1,5 +1,7 @@
 package com.esprit.studentcrud.util;
 
+import io.github.cdimascio.dotenv.Dotenv;
+
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -9,47 +11,48 @@ import java.nio.charset.StandardCharsets;
 
 public class WhatsAppService {
 
-    // TODO: put these in config (or env vars) later, not hardcoded
-    private static final String PHONE = "21624664938";   // your number
-    private static final String APIKEY = "7781890";      // your key
+    private static final Dotenv dotenv = Dotenv.load();
+
+    private static final String PHONE = dotenv.get("WHATSAPP_PHONE");
+    private static final String API_KEY = dotenv.get("WHATSAPP_API_KEY");
 
     private final HttpClient client = HttpClient.newHttpClient();
 
     public void sendStudentAdded(String name, int age, String email) {
-        String msg = "✅ New student added:\n"
-                + "Name: " + name + "\n"
-                + "Age: " + age + "\n"
-                + "Email: " + email;
+        String msg = """
+                ✅ New student added:
+                Name: %s
+                Age: %d
+                Email: %s
+                """.formatted(name, age, email);
 
         send(msg);
     }
 
-    public void send(String message) {
+    private void send(String message) {
         try {
             String encoded = URLEncoder.encode(message, StandardCharsets.UTF_8);
 
             String url = "https://api.callmebot.com/whatsapp.php"
                     + "?phone=" + PHONE
                     + "&text=" + encoded
-                    + "&apikey=" + APIKEY;
+                    + "&apikey=" + API_KEY;
 
-            HttpRequest req = HttpRequest.newBuilder()
+            HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .GET()
                     .build();
 
-            // async => doesn't freeze JavaFX UI
-            client.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .thenAccept(res -> {
                         if (res.statusCode() == 200) {
-                            System.out.println("✅ WhatsApp sent!");
+                            System.out.println("✅ WhatsApp message sent");
                         } else {
-                            System.out.println("❌ WhatsApp failed: " + res.statusCode());
-                            System.out.println(res.body());
+                            System.out.println("❌ WhatsApp error: " + res.statusCode());
                         }
                     })
                     .exceptionally(ex -> {
-                        System.out.println("❌ WhatsApp error: " + ex.getMessage());
+                        System.out.println("❌ WhatsApp exception: " + ex.getMessage());
                         return null;
                     });
 
