@@ -1,0 +1,26 @@
+/* base */
+.btn {
+    -fx-background-radius: 8;
+    -fx-padding: 8 14;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-text-fill: white;
+}
+
+/* variants */
+.btn-primary { -fx-background-color: #2563EB; }
+.btn-success { -fx-background-color: #10B981; }
+.btn-danger  { -fx-background-color: #EF4444; }
+.btn-muted   { -fx-background-color: #6B7280; }
+
+.btn-outline {
+    -fx-background-color: white;
+    -fx-text-fill: #111827;
+    -fx-border-color: #D1D5DB;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+/* hover + pressed */
+.btn:hover { -fx-opacity: 0.92; }
+.btn:pressed { -fx-opacity: 0.78; }

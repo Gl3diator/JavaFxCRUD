@@ -15,6 +15,9 @@ A simple **CRUD desktop application** built with **JavaFX (Scene Builder)** and 
 - ✅ Modular JavaFX project (`module-info.java`)
 - ✅ DAO layer (clean separation UI ↔ DB)
 - ✅ **WhatsApp notification when a student is added** 📲
+- ✅ **Email notification sent to the student on registration** 📧
+- ✅ Email & duplicate validation (DB + UI)
+- ✅ Status feedback inside the UI (success / error messages)
 
 ---
 
@@ -27,6 +30,7 @@ A simple **CRUD desktop application** built with **JavaFX (Scene Builder)** and 
 - **JDBC Driver**: MariaDB Connector/J
 - **UI Builder**: Scene Builder
 - **Messaging API**: CallMeBot (WhatsApp)
+- **Email API**: EmailJS
 
 ---
 
@@ -34,17 +38,17 @@ A simple **CRUD desktop application** built with **JavaFX (Scene Builder)** and 
 
 
 ```
-
 src/main/java/com/esprit/studentcrud/
-├── controller/ # JavaFX controllers
-├── dao/ # DAO interface + implementation
-├── model/ # Entity classes (Student)
-├── util/ # DBConnection, WhatsAppService
-├── MainApp.java # JavaFX Application entry
-└── Launcher.java # main() entry
+├── controller/        # JavaFX controllers
+├── dao/               # DAO interface + implementation
+├── model/             # Entity classes (Student)
+├── util/              # DBConnection, WhatsAppService, EmailJsService
+├── MainApp.java       # JavaFX Application entry
+└── Launcher.java      # main() entry
 
 src/main/resources/com/esprit/studentcrud/
-└── students-view.fxml # JavaFX view (Scene Builder)
+├── students-view.fxml # JavaFX view (Scene Builder)
+├── style.css          # Application styling
 
 ````
 
@@ -55,8 +59,8 @@ src/main/resources/com/esprit/studentcrud/
 - Java JDK installed
 - Maven installed (or IntelliJ Maven support)
 - **XAMPP** installed and MySQL/MariaDB service running
-- **WhatsApp** installed on your phone (for API notifications)
-
+- **WhatsApp** installed (for API notifications)
+- **EmailJS account** (for email notifications)
 
 ---
 
@@ -76,18 +80,10 @@ CREATE TABLE IF NOT EXISTS students (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(100) NOT NULL,
   age INT NOT NULL,
-  email VARCHAR(120) NOT NULL
+  email VARCHAR(120) NOT NULL UNIQUE
 );
 ````
-
-(Optional) Insert test data:
-
-```sql
-INSERT INTO students(name, age, email) VALUES
-('Ghaith', 26, 'Ghaith@mail.com'),
-('hamma', 22, 'hamma@mail.com');
 ```
-
 ---
 
 ## 🔌 Database Connection Configuration
@@ -103,36 +99,20 @@ private static final String URL = "jdbc:mariadb://localhost:3306/school";
 private static final String USER = "root";
 private static final String PASSWORD = "";
 ```
+
 ---
 
 ## 🧠 Architecture Overview
 
 ```
-FXML → Controller → DAO → Database → WhatsApp API
-
-Clean separation of concerns
-
-External API isolated in util
-
-Easily extensible (email, REST, auth…)
-
+FXML → Controller → DAO → Database
+                        ↳ WhatsApp API
+                        ↳ EmailJS API
 ```
 
-## 🧪 Common Issues
-
-### ❌ “No controller specified”
-
-Ensure the FXML root contains:
-
-```xml
-fx:controller="com.esprit.studentcrud.controller.StudentController"
-```
-
-### ❌ Table shows rows but cells are empty
-
-* Ensure `cellValueFactory` is set in the controller
-* Ensure `Student` getters exist (`getName()`, `getAge()`, etc.)
-
+* Clean separation of concerns
+* External APIs isolated in `util`
+* Easily extensible (login, roles, SMTP, REST…)
 
 ---
 
@@ -140,83 +120,124 @@ fx:controller="com.esprit.studentcrud.controller.StudentController"
 
 ![CallMeBot Logo](callmebot.png)
 
-This application can automatically send **WhatsApp messages** whenever a new student is added to the database.  
-The integration is done using the **CallMeBot WhatsApp API**.
+The application sends a **WhatsApp message** whenever a new student is added.
 
----
-
-### 🔐 Step 1 — Activate CallMeBot on Your Phone
+### 🔐 Step 1 — Phone Activation
 
 1. Add this number to your contacts:
    **+34 623 76 13 63**
 
 2. Send this message on WhatsApp:
+
 ```
 I allow callmebot to send me messages
 ```
 
 3. Receive your API key:
+
 ```
 API Activated for your phone number.
 Your APIKEY is XXXXXXX
 ```
 
-⚠️ If not received in 2 minutes, retry later.
+---
+
+### ⚙️ Step 2 — WhatsApp Service
+
+Logic is isolated in:
+
+```
+src/main/java/com/esprit/studentcrud/util/WhatsAppService.java
+```
+
+* Uses Java `HttpClient`
+* Runs asynchronously to avoid freezing the UI
 
 ---
 
-### ⚙️ Step 2 — Configure the API in the Application
+### 🔔 Trigger WhatsApp Notification
 
-```java
-package com.esprit.studentcrud.util;
+Triggered automatically after inserting a student:
 
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-
-public class WhatsAppService {
-
-    private static final String PHONE = "216XXXXXXXX";
-    private static final String API_KEY = "YOUR_API_KEY";
-
-    public static void sendMessage(String message) {
-        try {
-            String encoded = URLEncoder.encode(message, StandardCharsets.UTF_8);
-            String url = "https://api.callmebot.com/whatsapp.php?phone="
-                    + PHONE + "&text=" + encoded + "&apikey=" + API_KEY;
-
-            HttpClient.newHttpClient()
-                    .sendAsync(
-                        HttpRequest.newBuilder().uri(URI.create(url)).GET().build(),
-                        HttpResponse.BodyHandlers.ofString()
-                    );
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-}
 ```
-
-Add to `module-info.java`:
-```java
-requires java.net.http;
+New student added:
+Name
+Age
+Email
 ```
 
 ---
 
-### 🔔 Step 3 — Trigger Message on Add
+## 📧 Email Notification (EmailJS)
 
-```java
-WhatsAppService.sendMessage(
-    "📚 New student added:\n" +
-    "👤 Name: " + s.getName() + "\n" +
-    "🎂 Age: " + s.getAge() + "\n" +
-    "📧 Email: " + s.getEmail()
-);
+![EmailJS Logo](emailjs.png)
+
+When a student is successfully added, the application sends a **confirmation email to the student**.
+
+---
+
+### 🧩 Step 1 — EmailJS Setup
+
+1. Create an account at [https://www.emailjs.com](https://www.emailjs.com)
+2. Create:
+
+   * Email Service
+   * Email Template
+3. Template variables used:
+
+   * `{{student_name}}`
+   * `{{student_age}}`
+   * `{{student_email}}`
+
+The template is **HTML-based** and styled for professional emails.
+
+---
+
+### 🔐 Step 2 — Environment Variables (.env)
+
+Sensitive credentials are stored in a `.env` file (ignored by Git):
+
+```env
+EMAILJS_SERVICE_ID=your_service_id
+EMAILJS_TEMPLATE_ID=your_template_id
+EMAILJS_PUBLIC_KEY=your_public_key
+WHATSAPP_PHONE=216XXXXXXXX
+WHATSAPP_API_KEY=XXXXXXXX
 ```
+
+> `.env` is added to `.gitignore` to prevent leaks.
+
+---
+
+### ⚙️ Step 3 — EmailJsService
+
+Email logic is encapsulated in:
+
+```
+src/main/java/com/esprit/studentcrud/util/EmailJsService.java
+```
+
+Responsibilities:
+
+* Read values from `.env`
+* Call EmailJS REST API
+* Send HTML email asynchronously
+
+---
+
+### 📬 Step 4 — Trigger Email on Add
+
+When a student is added:
+
+* Database insert
+* UI refresh
+* WhatsApp notification
+* **Email sent to the student**
+
+Status feedback is displayed inside the UI:
+
+* ✅ Success (green)
+* ❌ Error (red)
 
 ---
 
@@ -225,23 +246,35 @@ WhatsAppService.sendMessage(
 ```bash
 mvn clean javafx:run
 ```
-## ✅ Add a Student
-
-![ADD](StudentADD.png)
----
-## 🚀 Message Recieved
-![message](Message.png)
 
 ---
+
+## 🧪 Common Issues
+
+### ❌ Table shows rows but cells are empty
+
+* Ensure `cellValueFactory` is set
+* Ensure getters exist in `Student`
+
+### ❌ Buttons disabled
+
+* Update/Delete enabled only when a row is selected
+
+### ❌ Email not sent
+
+* Check EmailJS credentials
+* Check template variable names
+
+---
+
 ## 👤 Author
 
-* **Ghaith** — ESPRIT
+**Ghaith — ESPRIT**
 
 ---
+
 ## 🔥 Future Improvements
 
-* Login & authentication system
-
-* Email format validation (Google SMTP)
-
-* User roles (Admin / User)
+* In-app notifications
+* Search bar
+* Export data (CSV / PDF)

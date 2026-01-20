@@ -20,13 +20,12 @@ public class StudentDAOImpl implements StudentDAO {
                 ResultSet rs = ps.executeQuery()
         ) {
             while (rs.next()) {
-                Student s = new Student(
+                list.add(new Student(
                         rs.getInt("id"),
                         rs.getString("name"),
                         rs.getInt("age"),
                         rs.getString("email")
-                );
-                list.add(s);
+                ));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -37,7 +36,7 @@ public class StudentDAOImpl implements StudentDAO {
 
     @Override
     public void insert(Student s) {
-        String sql = "INSERT INTO students (name, age, email) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO students(name, age, email) VALUES(?,?,?)";
 
         try (
                 Connection c = DBConnection.getConnection();
@@ -46,9 +45,15 @@ public class StudentDAOImpl implements StudentDAO {
             ps.setString(1, s.getName());
             ps.setInt(2, s.getAge());
             ps.setString(3, s.getEmail());
+
             ps.executeUpdate();
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            // 1062 = duplicate entry (UNIQUE)
+            if (e.getErrorCode() == 1062) {
+                throw new RuntimeException("DUPLICATE_EMAIL");
+            }
+            throw new RuntimeException(e);
         }
     }
 
@@ -64,9 +69,14 @@ public class StudentDAOImpl implements StudentDAO {
             ps.setInt(2, s.getAge());
             ps.setString(3, s.getEmail());
             ps.setInt(4, s.getId());
+
             ps.executeUpdate();
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (e.getErrorCode() == 1062) {
+                throw new RuntimeException("DUPLICATE_EMAIL");
+            }
+            throw new RuntimeException(e);
         }
     }
 
@@ -81,7 +91,46 @@ public class StudentDAOImpl implements StudentDAO {
             ps.setInt(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        String sql = "SELECT 1 FROM students WHERE email=? LIMIT 1";
+
+        try (
+                Connection c = DBConnection.getConnection();
+                PreparedStatement ps = c.prepareStatement(sql)
+        ) {
+            ps.setString(1, email);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public boolean existsByEmailExceptId(String email, int id) {
+        String sql = "SELECT 1 FROM students WHERE email=? AND id<>? LIMIT 1";
+
+        try (
+                Connection c = DBConnection.getConnection();
+                PreparedStatement ps = c.prepareStatement(sql)
+        ) {
+            ps.setString(1, email);
+            ps.setInt(2, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }

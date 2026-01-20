@@ -12,4 +12,8 @@ public interface StudentDAO {
     void update(Student s);
 
     void delete(int id);
+    // to prevent duplicates
+    boolean existsByEmail(String email);
+    boolean existsByEmailExceptId(String email, int id);
+
 }
